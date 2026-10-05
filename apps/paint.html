@@ -1,0 +1,650 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Triki Paint</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M5 27c4 0 6-2 6-5a3 3 0 0 0-6 0c0 2-1 3-2 3 0 1 1 2 2 2z' fill='%232a78d6'/%3E%3Cpath d='M12 19L26 5a2 2 0 0 1 3 3L15 22z' fill='%23eb6834'/%3E%3C/svg%3E">
+<style>
+  :root {
+    color-scheme: light;
+    --page: #f9f9f7;
+    --surface: #fcfcfb;
+    --wash: rgba(11, 11, 11, 0.04);
+    --wash-strong: rgba(42, 120, 214, 0.10);
+    --text: #0b0b0b;
+    --text-2: #52514e;
+    --muted: #898781;
+    --grid: #e1e0d9;
+    --border: rgba(11, 11, 11, 0.10);
+    --border-strong: rgba(42, 120, 214, 0.45);
+    --s1: #2a78d6;
+    --good: #0ca30c;
+    --warning: #fab219;
+    --serious: #ec835a;
+    --critical: #d03b3b;
+    --float-bg: rgba(252, 252, 251, 0.92);
+    --float-shadow: 0 6px 24px rgba(0, 0, 0, 0.10);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --page: #0d0d0d;
+      --surface: #1a1a19;
+      --wash: rgba(255, 255, 255, 0.05);
+      --wash-strong: rgba(57, 135, 229, 0.18);
+      --text: #ffffff;
+      --text-2: #c3c2b7;
+      --muted: #898781;
+      --grid: #2c2c2a;
+      --border: rgba(255, 255, 255, 0.10);
+      --border-strong: rgba(57, 135, 229, 0.55);
+      --s1: #3987e5;
+      --float-bg: rgba(35, 35, 33, 0.92);
+      --float-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --wash: rgba(255, 255, 255, 0.05);
+    --wash-strong: rgba(57, 135, 229, 0.18);
+    --text: #ffffff;
+    --text-2: #c3c2b7;
+    --muted: #898781;
+    --grid: #2c2c2a;
+    --border: rgba(255, 255, 255, 0.10);
+    --border-strong: rgba(57, 135, 229, 0.55);
+    --s1: #3987e5;
+    --float-bg: rgba(35, 35, 33, 0.92);
+    --float-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--page);
+    color: var(--text);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+  }
+
+  header.top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; padding: 12px 16px; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .brand { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  h1 { font-size: 18px; font-weight: 650; margin: 0; letter-spacing: -0.01em; }
+  .apps { display: inline-flex; border: 1px solid var(--border); border-radius: 10px; padding: 3px; background: var(--surface); gap: 2px; }
+  .apps a { display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 12px; border-radius: 7px; color: var(--text-2); text-decoration: none; font-size: 13px; font-weight: 500; white-space: nowrap; }
+  .apps a:hover { background: var(--wash); color: var(--text); }
+  .apps a[aria-current="page"] { background: var(--wash-strong); color: var(--text); font-weight: 600; }
+  .apps a:focus-visible { outline: 2px solid var(--s1); outline-offset: 1px; }
+  .apps svg { flex: none; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px 5px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); font-size: 13px; max-width: 100%; }
+  .pill .icon { display: inline-flex; width: 16px; height: 16px; flex: none; }
+  .pill .label { font-weight: 600; white-space: nowrap; }
+  .pill .msg { color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tone-good { color: var(--good); } .tone-warning { color: var(--warning); }
+  .tone-serious { color: var(--serious); } .tone-critical { color: var(--critical); }
+  .spin { animation: spin 1s linear infinite; transform-origin: 50% 50%; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 8px 16px; background: var(--surface); border-bottom: 1px solid var(--border); position: relative; z-index: 5; }
+  .group { display: inline-flex; align-items: center; gap: 8px; }
+  .group-label { font-size: 12px; color: var(--text-2); }
+  .btn {
+    appearance: none; font: inherit; font-size: 13px; height: 32px; padding: 0 12px;
+    border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text);
+    cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 7px; white-space: nowrap;
+  }
+  .btn:hover:not(:disabled) { background: var(--wash); }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn[aria-pressed="true"] { background: var(--wash-strong); border-color: var(--border-strong); }
+  .btn:focus-visible, .swatch:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--surface); }
+  .seg .btn { border: 0; border-radius: 0; height: 30px; }
+  .seg .btn + .btn { border-left: 1px solid var(--border); }
+  .seg .btn[aria-pressed="true"] { border-color: var(--border); }
+  .swatches { display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .swatch { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--border); padding: 0; cursor: pointer; box-shadow: 0 0 0 2px var(--surface); }
+  .swatch[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--text); }
+  .custom { width: 26px; height: 26px; padding: 0; border: 1px solid var(--border); border-radius: 50%; background: none; cursor: pointer; overflow: hidden; }
+  .custom::-webkit-color-swatch-wrapper { padding: 0; }
+  .custom::-webkit-color-swatch { border: 0; border-radius: 50%; }
+  input[type="range"] { width: 120px; accent-color: var(--s1); }
+  .size-val { font-variant-numeric: tabular-nums; font-size: 13px; min-width: 44px; color: var(--text); font-weight: 600; }
+  .pen-dot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--muted); flex: none; }
+  .pen-dot.on { background: var(--s1); border-color: var(--s1); }
+  .spacer { flex: 1; }
+
+  details.menu { position: relative; }
+  details.menu summary { list-style: none; }
+  details.menu summary::-webkit-details-marker { display: none; }
+  .menu-panel { position: absolute; right: 0; top: calc(100% + 6px); width: 270px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--float-shadow); padding: 8px; display: grid; gap: 4px; z-index: 20; }
+  .menu-panel .btn { justify-content: space-between; width: 100%; }
+  .menu-panel .note { font-size: 12px; color: var(--muted); padding: 4px 4px 2px; }
+
+  .stage { position: relative; flex: 1; overflow: hidden; background: var(--paper, #ffffff); touch-action: none; cursor: crosshair; }
+  .stage.dark-paper { --paper: #141413; }
+  .stage canvas { position: absolute; left: 0; top: 0; display: block; }
+  #overlay { pointer-events: none; }
+
+  .float { position: absolute; background: var(--float-bg); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--float-shadow); backdrop-filter: blur(6px); color: var(--text); }
+  .hud { top: 14px; left: 50%; transform: translateX(-50%); padding: 8px 14px; display: flex; align-items: center; gap: 10px; font-weight: 600; opacity: 0; transition: opacity 0.25s; pointer-events: none; }
+  .hud.show { opacity: 1; }
+  .hud .preview { width: 28px; height: 28px; display: grid; place-items: center; }
+  .hud .preview span { border-radius: 50%; display: block; }
+  .hints { left: 12px; bottom: 12px; padding: 8px 12px; font-size: 12px; color: var(--text-2); display: flex; gap: 4px 16px; flex-wrap: wrap; max-width: calc(100% - 24px); pointer-events: none; }
+  .hints b { color: var(--text); font-weight: 600; }
+  .toast { bottom: 16px; left: 50%; transform: translateX(-50%); padding: 6px 6px 6px 14px; display: flex; align-items: center; gap: 12px; font-size: 13px; }
+  .toast[hidden] { display: none; }
+  .flip { top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 18px 22px; display: flex; flex-direction: column; align-items: center; gap: 10px; font-weight: 600; pointer-events: none; }
+  .flip[hidden] { display: none; }
+  .flip circle { fill: none; stroke-width: 6; }
+
+  @media (prefers-reduced-motion: reduce) { .spin { animation: none; } .hud { transition: none; } }
+  @media (max-width: 900px) { .hints { display: none; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <h1>Triki</h1>
+    <nav class="apps" aria-label="Triki apps">
+      <a href="/"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12.5l4-5 3 3 6-7"/></svg>Dashboard</a>
+      <a href="/timer"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="8" cy="9" r="5.5"/><path d="M8 6.2V9l1.8 1.2M6.5 1.5h3"/></svg>Timer</a>
+      <a href="/paint" aria-current="page"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 9.5L13.6 2.4a1.4 1.4 0 0 1 2 2L8.5 11.5"/><path d="M5.5 10.5c-1.7 0-2.5 1-2.5 2.3 0 .9-.6 1.4-1.5 1.7 2.8.6 5.5-.2 5.5-2.5"/></svg>Paint</a>
+    </nav>
+  </div>
+  <div class="pill" role="status" aria-live="polite">
+    <span class="icon" id="statusIcon"></span>
+    <span class="label" id="statusLabel">Connecting</span>
+    <span class="msg" id="statusMsg"></span>
+  </div>
+</header>
+
+<div class="toolbar" role="toolbar" aria-label="Painting tools">
+  <div class="seg" role="group" aria-label="Tool">
+    <button class="btn" data-tool="brush" aria-pressed="true">Brush</button>
+    <button class="btn" data-tool="eraser" aria-pressed="false">Eraser</button>
+  </div>
+  <div class="swatches" id="swatches" role="group" aria-label="Colors">
+    <input type="color" class="custom" id="customColor" value="#2a78d6" title="Custom color" aria-label="Custom color">
+  </div>
+  <div class="group">
+    <span class="group-label" id="sizeLabel">Size</span>
+    <input type="range" id="sizeRange" min="0" max="21" step="1" aria-labelledby="sizeLabel">
+    <span class="size-val" id="sizeVal"></span>
+  </div>
+  <button class="btn" id="paintBtn" aria-pressed="false" title="Shake the Triki or press Space"><span class="pen-dot" id="penDot"></span><span id="paintText">Painting off</span></button>
+  <span class="spacer"></span>
+  <button class="btn" id="undoBtn" disabled title="Ctrl+Z">Undo</button>
+  <button class="btn" id="redoBtn" disabled title="Ctrl+Y">Redo</button>
+  <button class="btn" id="clearBtn">Clear</button>
+  <button class="btn" id="saveBtn">Save PNG</button>
+  <details class="menu" id="menu">
+    <summary class="btn">Controller</summary>
+    <div class="menu-panel">
+      <button class="btn" id="tiltBtn" aria-pressed="true">Tilt moves the brush<span id="tiltState">On</span></button>
+      <button class="btn" id="rotBtn">Tilt direction<span id="rotState">0°</span></button>
+      <button class="btn" id="calBtn">Set current angle as level</button>
+      <button class="btn" id="reverseBtn" aria-pressed="false">Reverse twist<span id="reverseState">Off</span></button>
+      <button class="btn" id="paperBtn">Paper<span id="paperState">Light</span></button>
+      <div class="note">If tilting moves the brush the wrong way, change the tilt direction until it follows your hand.</div>
+    </div>
+  </details>
+</div>
+
+<div class="stage" id="stage">
+  <canvas id="paint"></canvas>
+  <canvas id="overlay"></canvas>
+  <div class="float hud" id="hud"><span class="preview"><span id="hudDot"></span></span><span id="hudText"></span></div>
+  <div class="float flip" id="flip" hidden>
+    <svg width="56" height="56" viewBox="0 0 56 56" aria-hidden="true"><circle cx="28" cy="28" r="24" style="stroke: var(--grid)"/><circle id="flipArc" cx="28" cy="28" r="24" transform="rotate(-90 28 28)" style="stroke: var(--s1)" stroke-linecap="round" stroke-dasharray="150.8" stroke-dashoffset="150.8"/></svg>
+    <span>Keep it upside down to clear</span>
+  </div>
+  <div class="float hints" id="hints">
+    <span><b>Tilt</b> moves the brush</span>
+    <span><b>Twist</b> changes size</span>
+    <span><b>Shake</b> painting on/off</span>
+    <span><b>Flip over</b> clears</span>
+    <span>Mouse, pen and touch draw too</span>
+  </div>
+  <div class="float toast" id="toast" hidden role="status"><span id="toastText"></span><button class="btn" id="toastUndo">Undo</button></div>
+</div>
+
+<script>
+'use strict';
+// ---------- tuning ----------
+const ACC_LSB = 2048, GYR_LSB = 16.4, NOMINAL_DT = 1 / 52;
+const DETENT_DEG = 12, DEADBAND_DPS = 12;
+const TILT_DEADZONE = 0.05, TILT_FULL = 0.5, MAX_SPEED = 950;   // tilt is sin(angle): 3° dead zone, full speed at 30°
+const FLIP_HOLD_MS = 1100;
+const SIZES = [1, 2, 3, 4, 6, 8, 10, 12, 14, 16, 20, 24, 28, 32, 40, 48, 56, 64, 80, 96, 128, 160];
+const COLORS = [
+  ['Ink', '#0b0b0b'], ['Graphite', '#52514e'], ['White', '#ffffff'], ['Blue', '#2a78d6'], ['Aqua', '#1baf7a'],
+  ['Green', '#008300'], ['Yellow', '#eda100'], ['Orange', '#eb6834'], ['Red', '#e34948'], ['Magenta', '#e87ba4'], ['Violet', '#4a3aa7'],
+];
+const $ = id => document.getElementById(id);
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+// ---------- settings (twist direction is shared with the timer) ----------
+const S = { tool: 'brush', color: '#0b0b0b', sizeIdx: 9, painting: false, tilt: true, rot: 0, paper: 'light', neutral: null };
+try { Object.assign(S, JSON.parse(localStorage.getItem('triki-paint') || '{}')); } catch (e) {}
+S.painting = false;
+let reverseTwist = false;
+try { reverseTwist = localStorage.getItem('triki-twist-reverse') === '1'; } catch (e) {}
+function save() {
+  try {
+    const { tool, color, sizeIdx, tilt, rot, paper, neutral } = S;
+    localStorage.setItem('triki-paint', JSON.stringify({ tool, color, sizeIdx, tilt, rot, paper, neutral }));
+    localStorage.setItem('triki-twist-reverse', reverseTwist ? '1' : '0');
+  } catch (e) {}
+}
+const size = () => SIZES[S.sizeIdx];
+
+// ---------- canvases ----------
+const stage = $('stage'), paint = $('paint'), overlay = $('overlay');
+const pctx = paint.getContext('2d'), octx = overlay.getContext('2d');
+let dpr = window.devicePixelRatio || 1, paperW = 0, paperH = 0;
+function sizePaper() {
+  // The paper is at least screen-sized, so resizing the window never crops a painting.
+  const w = Math.max(screen.width, stage.clientWidth), h = Math.max(screen.height, stage.clientHeight);
+  if (w <= paperW && h <= paperH) return;
+  let keep = null;
+  if (paperW) { keep = document.createElement('canvas'); keep.width = paint.width; keep.height = paint.height; keep.getContext('2d').drawImage(paint, 0, 0); }
+  paperW = Math.max(w, paperW); paperH = Math.max(h, paperH);
+  paint.width = Math.round(paperW * dpr); paint.height = Math.round(paperH * dpr);
+  paint.style.width = paperW + 'px'; paint.style.height = paperH + 'px';
+  pctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  if (keep) { pctx.save(); pctx.setTransform(1, 0, 0, 1, 0, 0); pctx.drawImage(keep, 0, 0); pctx.restore(); }
+}
+function sizeOverlay() {
+  overlay.width = Math.round(stage.clientWidth * dpr); overlay.height = Math.round(stage.clientHeight * dpr);
+  overlay.style.width = stage.clientWidth + 'px'; overlay.style.height = stage.clientHeight + 'px';
+  octx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+new ResizeObserver(() => { sizePaper(); sizeOverlay(); }).observe(stage);
+sizePaper(); sizeOverlay();
+
+// ---------- drawing ----------
+function setupStroke(w) {
+  pctx.globalCompositeOperation = S.tool === 'eraser' ? 'destination-out' : 'source-over';
+  pctx.strokeStyle = pctx.fillStyle = S.color;
+  pctx.lineWidth = w; pctx.lineCap = 'round'; pctx.lineJoin = 'round';
+}
+function seg(x0, y0, x1, y1, w) {
+  setupStroke(w);
+  pctx.beginPath(); pctx.moveTo(x0, y0); pctx.lineTo(x1, y1); pctx.stroke();
+  pctx.globalCompositeOperation = 'source-over';
+}
+function dab(x, y, w) {
+  setupStroke(w);
+  pctx.beginPath(); pctx.arc(x, y, Math.max(0.5, w / 2), 0, Math.PI * 2); pctx.fill();
+  pctx.globalCompositeOperation = 'source-over';
+}
+
+// ---------- undo / redo / autosave ----------
+const undoStack = [], redoStack = [];
+const snapshot = () => new Promise(r => paint.toBlob(r));    // toBlob copies the pixels synchronously
+async function restore(blobP) {
+  try {
+    const bmp = await createImageBitmap(await blobP);
+    pctx.save(); pctx.setTransform(1, 0, 0, 1, 0, 0);
+    pctx.clearRect(0, 0, paint.width, paint.height); pctx.drawImage(bmp, 0, 0);
+    pctx.restore();
+  } catch (e) {}
+  autosave();
+}
+function beginStroke() {
+  undoStack.push(snapshot());
+  if (undoStack.length > 40) undoStack.shift();
+  redoStack.length = 0;
+  updateUndo();
+}
+function endStroke() { autosave(); }
+async function undo() { if (!undoStack.length) return; const cur = snapshot(); const prev = undoStack.pop(); redoStack.push(cur); updateUndo(); await restore(prev); }
+async function redo() { if (!redoStack.length) return; const cur = snapshot(); const next = redoStack.pop(); undoStack.push(cur); updateUndo(); await restore(next); }
+function updateUndo() { $('undoBtn').disabled = !undoStack.length; $('redoBtn').disabled = !redoStack.length; }
+function clearCanvas(reason) {
+  beginStroke();
+  pctx.save(); pctx.setTransform(1, 0, 0, 1, 0, 0); pctx.clearRect(0, 0, paint.width, paint.height); pctx.restore();
+  endStroke();
+  toast(reason || 'Canvas cleared');
+}
+
+// The painting survives switching tabs or closing the window (IndexedDB).
+let saveTimer = null;
+function db() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open('triki-paint', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('canvas');
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  });
+}
+function autosave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    try { const blob = await snapshot(); const d = await db(); d.transaction('canvas', 'readwrite').objectStore('canvas').put(blob, 'current'); } catch (e) {}
+  }, 600);
+}
+async function loadSaved() {
+  try {
+    const d = await db();
+    const blob = await new Promise(res => { const q = d.transaction('canvas').objectStore('canvas').get('current'); q.onsuccess = () => res(q.result); q.onerror = () => res(null); });
+    if (blob) {
+      const bmp = await createImageBitmap(blob);
+      pctx.save(); pctx.setTransform(1, 0, 0, 1, 0, 0); pctx.drawImage(bmp, 0, 0); pctx.restore();
+    }
+  } catch (e) {}
+}
+
+// ---------- mouse / pen / touch ----------
+let pointer = null, hover = null;
+const pos = e => { const r = stage.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+const pWidth = e => e.pointerType === 'pen' && e.pressure > 0 ? Math.max(1, size() * (0.25 + 0.75 * e.pressure)) : size();
+stage.addEventListener('pointerdown', e => {
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  $('menu').open = false;
+  stage.setPointerCapture(e.pointerId);
+  beginStroke();
+  const p = pos(e); pointer = p; dab(p.x, p.y, pWidth(e));
+});
+stage.addEventListener('pointermove', e => {
+  hover = e.pointerType === 'mouse' ? pos(e) : null;
+  if (!pointer) return;
+  const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+  for (const ce of (evs.length ? evs : [e])) { const p = pos(ce); seg(pointer.x, pointer.y, p.x, p.y, pWidth(ce)); pointer = p; }
+});
+const endPointer = () => { if (pointer) { pointer = null; endStroke(); } };
+stage.addEventListener('pointerup', endPointer);
+stage.addEventListener('pointercancel', endPointer);
+stage.addEventListener('pointerleave', () => { hover = null; });
+
+// ---------- toolbar ----------
+const swatchBox = $('swatches');
+COLORS.forEach(([name, hex]) => {
+  const b = document.createElement('button');
+  b.className = 'swatch'; b.style.background = hex; b.dataset.color = hex;
+  b.setAttribute('aria-label', name); b.title = name;
+  b.addEventListener('click', () => setColor(hex));
+  swatchBox.insertBefore(b, $('customColor'));
+});
+$('customColor').addEventListener('input', e => setColor(e.target.value));
+function setColor(hex) {
+  S.color = hex;
+  if (S.tool === 'eraser') S.tool = 'brush';
+  save(); renderTools();
+}
+document.querySelectorAll('[data-tool]').forEach(b => b.addEventListener('click', () => { S.tool = b.dataset.tool; save(); renderTools(); }));
+$('sizeRange').addEventListener('input', e => { S.sizeIdx = Number(e.target.value); save(); renderTools(); showHud(); });
+$('paintBtn').addEventListener('click', () => togglePainting());
+$('undoBtn').addEventListener('click', undo);
+$('redoBtn').addEventListener('click', redo);
+$('toastUndo').addEventListener('click', () => { undo(); $('toast').hidden = true; });
+$('clearBtn').addEventListener('click', () => clearCanvas());
+$('saveBtn').addEventListener('click', () => {
+  const w = Math.round(stage.clientWidth * dpr), h = Math.round(stage.clientHeight * dpr);
+  const out = document.createElement('canvas'); out.width = w; out.height = h;
+  const c = out.getContext('2d');
+  c.fillStyle = S.paper === 'dark' ? '#141413' : '#ffffff'; c.fillRect(0, 0, w, h);
+  c.drawImage(paint, 0, 0, w, h, 0, 0, w, h);
+  out.toBlob(blob => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `triki-painting-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.png`;
+    a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  });
+});
+$('tiltBtn').addEventListener('click', () => { S.tilt = !S.tilt; save(); renderTools(); });
+$('rotBtn').addEventListener('click', () => { S.rot = (S.rot + 90) % 360; save(); renderTools(); });
+$('calBtn').addEventListener('click', () => { calibrate(); toast('Level set', false); });
+$('reverseBtn').addEventListener('click', () => { reverseTwist = !reverseTwist; save(); renderTools(); });
+$('paperBtn').addEventListener('click', () => {
+  S.paper = S.paper === 'dark' ? 'light' : 'dark';
+  if (S.paper === 'dark' && S.color === '#0b0b0b') S.color = '#ffffff';
+  else if (S.paper === 'light' && S.color === '#ffffff') S.color = '#0b0b0b';
+  save(); renderTools();
+});
+document.addEventListener('pointerdown', e => { if (!$('menu').contains(e.target)) $('menu').open = false; });
+
+function renderTools() {
+  document.querySelectorAll('[data-tool]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tool === S.tool)));
+  document.querySelectorAll('.swatch').forEach(b => b.setAttribute('aria-pressed', String(S.tool === 'brush' && b.dataset.color === S.color)));
+  $('sizeRange').max = SIZES.length - 1; $('sizeRange').value = S.sizeIdx;
+  $('sizeVal').textContent = size() + ' px';
+  $('paintBtn').setAttribute('aria-pressed', String(S.painting));
+  $('penDot').classList.toggle('on', S.painting);
+  $('paintText').textContent = S.painting ? 'Painting on' : 'Painting off';
+  $('tiltBtn').setAttribute('aria-pressed', String(S.tilt)); $('tiltState').textContent = S.tilt ? 'On' : 'Off';
+  $('rotState').textContent = S.rot + '°';
+  $('reverseBtn').setAttribute('aria-pressed', String(reverseTwist)); $('reverseState').textContent = reverseTwist ? 'On' : 'Off';
+  $('paperState').textContent = S.paper === 'dark' ? 'Dark' : 'Light';
+  stage.classList.toggle('dark-paper', S.paper === 'dark');
+}
+
+// ---------- feedback ----------
+let hudTimer = null, toastTimer = null;
+function showHud(text) {
+  const d = $('hudDot'), px = Math.min(28, Math.max(3, size() * 0.6));
+  d.style.width = d.style.height = px + 'px';
+  d.style.background = S.tool === 'eraser' ? 'transparent' : S.color;
+  d.style.border = S.tool === 'eraser' || S.color === '#ffffff' ? '1.5px solid var(--muted)' : 'none';
+  $('hudText').textContent = text || `${S.tool === 'eraser' ? 'Eraser' : 'Brush'} ${size()} px`;
+  $('hud').classList.add('show');
+  clearTimeout(hudTimer); hudTimer = setTimeout(() => $('hud').classList.remove('show'), 1200);
+}
+function toast(text, withUndo = true) {
+  $('toastText').textContent = text; $('toastUndo').hidden = !withUndo; $('toast').hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { $('toast').hidden = true; }, withUndo ? 6000 : 1800);
+}
+function togglePainting(force) {
+  S.painting = typeof force === 'boolean' ? force : !S.painting;
+  renderTools();
+  showHud(S.painting ? 'Painting on' : 'Painting off · move freely');
+}
+
+// ---------- keyboard ----------
+document.addEventListener('keydown', e => {
+  if (e.target.matches && e.target.matches('input, summary')) return;
+  const k = e.key.toLowerCase();
+  if ((e.ctrlKey || e.metaKey) && k === 'z') { e.shiftKey ? redo() : undo(); e.preventDefault(); }
+  else if ((e.ctrlKey || e.metaKey) && k === 'y') { redo(); e.preventDefault(); }
+  else if (e.ctrlKey || e.metaKey || e.altKey) return;
+  else if (k === ' ') { togglePainting(); e.preventDefault(); }
+  else if (k === 'b') { S.tool = 'brush'; renderTools(); }
+  else if (k === 'e') { S.tool = 'eraser'; renderTools(); }
+  else if (k === '[') { stepSize(-1); }
+  else if (k === ']') { stepSize(1); }
+  else if (k === 'c') { calibrate(); toast('Level set', false); }
+  else if (/^[0-9]$/.test(k)) { const i = k === '0' ? 9 : Number(k) - 1; if (COLORS[i]) setColor(COLORS[i][1]); }
+});
+function stepSize(dir) {
+  const n = clamp(S.sizeIdx + dir, 0, SIZES.length - 1);
+  if (n === S.sizeIdx) return;
+  S.sizeIdx = n; save(); renderTools(); showHud();
+}
+
+// ---------- controller motion ----------
+const M = {
+  bias: [0, 0, 0], biasReady: false, win: [], lastT: null, acc: 0, lastTwistT: -1,
+  peaks: [], lastPeakT: -1, lp: null, freezeUntil: 0, tilt: { x: 0, y: 0 },
+  flipSince: null, flipFired: false, stillSince: null,
+};
+function calibrate() {
+  if (!M.lp) return;
+  const n = Math.hypot(...M.lp);
+  S.neutral = M.lp.map(v => v / n); save();
+}
+function onSample(r, live) {
+  const t = r[1];
+  const g = [r[2] / GYR_LSB, r[3] / GYR_LSB, r[4] / GYR_LSB];
+  const a = [r[5] / ACC_LSB, r[6] / ACC_LSB, r[7] / ACC_LSB];
+  const amag = Math.hypot(a[0], a[1], a[2]);
+  M.lp = M.lp ? M.lp.map((v, i) => v + 0.18 * (a[i] - v)) : a.slice();
+
+  // learn the gyro bias whenever the controller rests for ~0.8 s
+  M.win.push([g[0], g[1], g[2], amag]);
+  if (M.win.length > 40) M.win.shift();
+  let still = false;
+  if (M.win.length === 40) {
+    const m = [0, 0, 0];
+    for (const w of M.win) { m[0] += w[0] / 40; m[1] += w[1] / 40; m[2] += w[2] / 40; }
+    let dev = 0, adev = 0;
+    for (const w of M.win) { dev = Math.max(dev, Math.abs(w[0] - m[0]), Math.abs(w[1] - m[1]), Math.abs(w[2] - m[2])); adev = Math.max(adev, Math.abs(w[3] - 1)); }
+    still = dev < 2 && adev < 0.08;
+    if (still) { const k = M.biasReady ? 0.02 : 1; for (let i = 0; i < 3; i++) M.bias[i] += k * (m[i] - M.bias[i]); M.biasReady = true; }
+  }
+  if (!live) return;
+  // First time it rests near flat, take that as "level".
+  if (!S.neutral && still) {
+    const n = Math.hypot(...M.lp);
+    if (Math.abs(M.lp[2] / n) > 0.9) { calibrate(); }
+  }
+
+  let dt = M.lastT === null ? NOMINAL_DT : t - M.lastT;
+  M.lastT = t;
+  if (!(dt > 0.001 && dt < 0.15)) dt = NOMINAL_DT;
+  const now = performance.now();
+
+  // shake → painting on/off. Any jolt freezes brush movement so a shake never scribbles.
+  const dyn = Math.abs(amag - 1);
+  if (dyn > 0.35) M.freezeUntil = Math.max(M.freezeUntil, now + 350);
+  if (dyn > 1.0 && t - M.lastPeakT > 0.09) { M.peaks.push(t); M.lastPeakT = t; }
+  M.peaks = M.peaks.filter(p => t - p < 1.0);
+  if (M.peaks.length >= 3) { M.peaks = []; M.acc = 0; M.freezeUntil = now + 700; togglePainting(); return; }
+
+  // twist → brush size
+  let rate = g[2] - M.bias[2];
+  if (reverseTwist) rate = -rate;
+  const cw = -rate;
+  if (Math.abs(cw) > DEADBAND_DPS && now >= M.freezeUntil) {
+    M.acc += cw * dt; M.lastTwistT = t;
+    while (M.acc >= DETENT_DEG) { M.acc -= DETENT_DEG; stepSize(1); }
+    while (M.acc <= -DETENT_DEG) { M.acc += DETENT_DEG; stepSize(-1); }
+  } else if (t - M.lastTwistT > 0.6) {
+    M.acc = 0;
+  }
+
+  // tilt → brush velocity, measured against the "level" orientation
+  const n = S.neutral || [0, 0, 1];
+  const ul = Math.hypot(...M.lp), u = M.lp.map(v => v / ul);
+  const along = u[0] * n[0] + u[1] * n[1] + u[2] * n[2];
+  // flipped over and held → clear
+  if (along < -0.5) {
+    if (M.flipSince === null) M.flipSince = now;
+    if (!M.flipFired && now - M.flipSince > FLIP_HOLD_MS) { M.flipFired = true; clearCanvas('Canvas cleared by flipping'); }
+  } else if (along > 0) { M.flipSince = null; M.flipFired = false; }
+
+  const d = u.map((v, i) => v - along * n[i]);
+  let e1 = [1 - n[0] * n[0], -n[0] * n[1], -n[0] * n[2]];
+  if (Math.hypot(...e1) < 0.3) e1 = [-n[1] * n[0], 1 - n[1] * n[1], -n[1] * n[2]];
+  const l1 = Math.hypot(...e1); e1 = e1.map(v => v / l1);
+  const e2 = [n[1] * e1[2] - n[2] * e1[1], n[2] * e1[0] - n[0] * e1[2], n[0] * e1[1] - n[1] * e1[0]];
+  const tx = d[0] * e1[0] + d[1] * e1[1] + d[2] * e1[2];
+  const ty = d[0] * e2[0] + d[1] * e2[1] + d[2] * e2[2];
+  // Like a marble: lower the +X edge and the brush rolls right; lower the +Y edge and it rolls up.
+  let sx = -tx, sy = ty;
+  for (let k = 0; k < S.rot / 90; k++) [sx, sy] = [-sy, sx];
+  M.tilt = { x: sx, y: sy };
+}
+
+// ---------- tilt brush + overlay (every frame) ----------
+const tb = { x: 0, y: 0, placed: false, stroking: false };
+let lastFrame = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - lastFrame) / 1000); lastFrame = now;
+  const W = stage.clientWidth, H = stage.clientHeight;
+  if (!tb.placed && W) { tb.x = W / 2; tb.y = H / 2; tb.placed = true; }
+  const flipping = M.flipSince !== null && !M.flipFired;
+  const active = connected && S.tilt && M.flipSince === null && now >= M.freezeUntil;
+
+  if (active) {
+    const m = Math.hypot(M.tilt.x, M.tilt.y);
+    if (m > TILT_DEADZONE) {
+      const k = Math.pow(clamp((m - TILT_DEADZONE) / (TILT_FULL - TILT_DEADZONE), 0, 1), 1.6) * Math.min(MAX_SPEED, Math.hypot(W, H) * 0.6);
+      const nx = clamp(tb.x + M.tilt.x / m * k * dt, 0, W), ny = clamp(tb.y + M.tilt.y / m * k * dt, 0, H);
+      if (S.painting) {
+        if (!tb.stroking) { beginStroke(); dab(tb.x, tb.y, size()); tb.stroking = true; }
+        seg(tb.x, tb.y, nx, ny, size());
+      }
+      tb.x = nx; tb.y = ny;
+    }
+  }
+  if (tb.stroking && (!S.painting || !connected)) { tb.stroking = false; endStroke(); }
+  if (S.painting && connected && S.tilt && !tb.stroking && M.flipSince === null) { beginStroke(); dab(tb.x, tb.y, size()); tb.stroking = true; }
+
+  // flip-to-clear progress
+  $('flip').hidden = !flipping;
+  if (flipping) $('flipArc').setAttribute('stroke-dashoffset', String(150.8 * (1 - clamp((now - M.flipSince) / FLIP_HOLD_MS, 0, 1))));
+
+  // cursors
+  octx.clearRect(0, 0, W, H);
+  const ink = S.paper === 'dark' ? 'rgba(255,255,255,0.85)' : 'rgba(11,11,11,0.75)';
+  const ring = (x, y, filled) => {
+    const r = Math.max(2.5, size() / 2);
+    if (filled && S.tool === 'brush') { octx.beginPath(); octx.arc(x, y, r, 0, Math.PI * 2); octx.fillStyle = S.color; octx.globalAlpha = 0.85; octx.fill(); octx.globalAlpha = 1; }
+    octx.beginPath(); octx.arc(x, y, r + 1, 0, Math.PI * 2);
+    octx.strokeStyle = ink; octx.lineWidth = 1.5; octx.stroke();
+    if (S.tool === 'eraser') { octx.beginPath(); octx.moveTo(x - r * 0.5, y - r * 0.5); octx.lineTo(x + r * 0.5, y + r * 0.5); octx.moveTo(x + r * 0.5, y - r * 0.5); octx.lineTo(x - r * 0.5, y + r * 0.5); octx.stroke(); }
+  };
+  if (connected && S.tilt) {
+    ring(tb.x, tb.y, S.painting);
+    // small marker so the Triki cursor reads apart from the mouse cursor
+    octx.beginPath(); octx.arc(tb.x, tb.y, 2, 0, Math.PI * 2); octx.fillStyle = ink; octx.fill();
+  }
+  if (hover && !pointer) ring(hover.x, hover.y, false);
+  requestAnimationFrame(frame);
+}
+
+// ---------- connection ----------
+const ICONS = {
+  check: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.5"/><path d="M5.2 8.2l1.9 1.9 3.7-4"/></svg>',
+  spin: '<svg class="spin" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M8 1.5a6.5 6.5 0 1 1-6.5 6.5"/></svg>',
+  alert: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.8l6.6 11.7H1.4z"/><path d="M8 6.3v3.2M8 11.6v.1"/></svg>',
+  x: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><circle cx="8" cy="8" r="6.5"/><path d="M5.7 5.7l4.6 4.6M10.3 5.7l-4.6 4.6"/></svg>',
+};
+const STATES = {
+  streaming: { tone: 'good', icon: 'check', label: 'Triki connected' },
+  connecting: { tone: 'warning', icon: 'spin', label: 'Connecting' },
+  scanning: { tone: 'warning', icon: 'spin', label: 'Looking for the Triki' },
+  starting: { tone: 'warning', icon: 'spin', label: 'Starting' },
+  not_found: { tone: 'serious', icon: 'alert', label: 'Triki not found' },
+  reconnecting: { tone: 'serious', icon: 'alert', label: 'Reconnecting' },
+  offline: { tone: 'critical', icon: 'x', label: 'Server offline' },
+};
+let connected = false, lastSeq = 0, boot = null, status = {};
+function renderStatus() {
+  const def = STATES[status.state] || STATES.starting;
+  $('statusIcon').className = 'icon tone-' + def.tone;
+  $('statusIcon').innerHTML = ICONS[def.icon];
+  $('statusLabel').textContent = def.label;
+  const msg = status.state === 'not_found' ? 'retrying… is it on?' : status.state === 'offline' ? status.message || '' : '';
+  $('statusMsg').textContent = msg; $('statusMsg').hidden = !msg;
+  connected = status.state === 'streaming';
+}
+function connect() {
+  const es = new EventSource('/events');
+  es.addEventListener('status', e => {
+    const st = JSON.parse(e.data);
+    if (st.boot && st.boot !== boot) { boot = st.boot; lastSeq = 0; M.lastT = null; }
+    status = Object.assign({}, status, st);
+    renderStatus();
+  });
+  es.addEventListener('imu', e => {
+    const msg = JSON.parse(e.data), live = !msg.history;
+    for (const r of msg.s) { if (r[0] <= lastSeq) continue; lastSeq = r[0]; onSample(r, live); }
+  });
+  es.onerror = () => {
+    if (es.readyState !== EventSource.OPEN) { status = Object.assign({}, status, { state: 'offline', message: 'Run apps/TrikiApps.py' }); renderStatus(); }
+  };
+}
+
+renderTools();
+renderStatus();
+loadSaved();
+connect();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

@@ -34,13 +34,15 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))     # TrikiPy.py lives in the repository root
 from TrikiPy import TrikiDevice
+from triki_mouse import MouseEngine, system_mouse
 
 try:
     import winsound
 except ImportError:          # not on Windows: the timer page falls back to browser audio
     winsound = None
 
-PAGES = {"/": HERE / "dashboard.html", "/timer": HERE / "timer.html", "/paint": HERE / "paint.html"}
+PAGES = {"/": HERE / "dashboard.html", "/timer": HERE / "timer.html",
+         "/paint": HERE / "paint.html", "/mouse": HERE / "mouse.html"}
 NOMINAL_DT = 1 / 52          # wake command selects a 52 Hz output data rate
 HISTORY_SECONDS = 30         # replayed to a browser tab when it (re)connects
 BATTERY_POLL_SECONDS = 30
@@ -85,10 +87,16 @@ class TrikiHub:
         self.seq = 0
         self.t_last = None
         self.t0 = time.perf_counter()
+        self.mouse = MouseEngine()
+        self.os_mouse = system_mouse()           # None where the real cursor can't be driven
+        self.pending = [0.0, 0.0, 0.0]          # live mode: movement/wheel not yet sent to Windows
+        self.mouse_task = None
+        self.mouse_led = False
         self.status = {
             "boot": int(time.time() * 1000),   # lets the page notice a server restart
             "state": "starting", "name": None, "address": None, "firmware": None,
             "battery": None, "led": False, "message": "",
+            "mouse": dict(self.mouse.public_state(), live_available=self.os_mouse is not None),
         }
 
     # --- broadcasting -----------------------------------------------------
@@ -124,7 +132,76 @@ class TrikiHub:
             row = [self.seq, self._timestamp(), d.ax, d.ay, d.az, d.gx, d.gy, d.gz]
             rows.append(row)
             self.history.append(row)
+            self.mouse.feed(row[1], (d.ax / 16.4, d.ay / 16.4, d.az / 16.4), (d.gx / 2048, d.gy / 2048, d.gz / 2048))
         self._broadcast("imu", {"s": rows})
+        self._handle_mouse(self.mouse.take())
+
+    # --- mouse --------------------------------------------------------------
+
+    def _handle_mouse(self, out: dict):
+        mode = self.mouse.settings["mode"]
+        if mode == "off":
+            return
+        if any(e in ("pause", "resume") for e in out["events"]):
+            self._mouse_status()
+        if mode == "live" and self.os_mouse:
+            self.pending[0] += out["dx"]
+            self.pending[1] += out["dy"]
+            self.pending[2] += out["wheel"]
+            if out["clicks"]:
+                self._flush_pending()            # click exactly where the cursor was aimed
+                self.os_mouse.click(out["clicks"])
+        if out["dx"] or out["dy"] or out["wheel"] or out["clicks"] or out["events"]:
+            self._broadcast("mouse", {
+                "dx": round(out["dx"], 2), "dy": round(out["dy"], 2), "wheel": round(out["wheel"], 3),
+                "clicks": out["clicks"], "events": out["events"], "paused": self.mouse.paused,
+            })
+
+    def _flush_pending(self):
+        dx, dy = round(self.pending[0]), round(self.pending[1])
+        if dx or dy:
+            self.os_mouse.move(dx, dy)
+        self.pending[0] -= dx
+        self.pending[1] -= dy
+
+    async def _drive_cursor(self):
+        """Live mode: glide the real cursor so 17 Hz bursts of samples don't look jumpy."""
+        last = time.perf_counter()
+        while self.mouse.settings["mode"] == "live":
+            await asyncio.sleep(0.008)
+            now = time.perf_counter()
+            k = 1 - math.exp(-(now - last) / 0.03)
+            last = now
+            dx, dy = round(self.pending[0] * k), round(self.pending[1] * k)
+            if dx or dy:
+                self.os_mouse.move(dx, dy)
+                self.pending[0] -= dx
+                self.pending[1] -= dy
+            wheel = round(self.pending[2] * 120)
+            if abs(wheel) >= 15:                 # Windows wheel units: 120 = one notch
+                self.os_mouse.wheel(wheel)
+                self.pending[2] -= wheel / 120
+        self.pending = [0.0, 0.0, 0.0]
+
+    def configure_mouse(self, body: dict) -> dict:
+        if body.get("mode") == "live" and not self.os_mouse:
+            body = dict(body, mode="preview")
+        self.mouse.configure(**{k: v for k, v in body.items() if k != "calibrate"})
+        if body.get("calibrate"):
+            self.mouse.calibrate()
+        if self.mouse.settings["mode"] == "live" and (self.mouse_task is None or self.mouse_task.done()):
+            self.pending = [0.0, 0.0, 0.0]
+            self.mouse_task = asyncio.create_task(self._drive_cursor())
+        self._mouse_status()
+        return self.status["mouse"]
+
+    def _mouse_status(self):
+        self.set_status(mouse=dict(self.mouse.public_state(), live_available=self.os_mouse is not None))
+        # The LED shows when the Triki is acting as a mouse (off while paused face-down).
+        want = self.mouse.active and self.triki is not None
+        if want != self.mouse_led:
+            self.mouse_led = want
+            asyncio.ensure_future(self.set_led(want))
 
     # --- BLE --------------------------------------------------------------
 
@@ -148,6 +225,9 @@ class TrikiHub:
 
                 self.triki = triki
                 self.set_status(state="streaming", message="")
+                self.mouse.reset()
+                self.mouse_led = False
+                self._mouse_status()                 # relights the LED if the mouse is on
                 await self._stream(triki)
                 self.set_status(state="reconnecting", message="Connection lost - reconnecting")
             except asyncio.CancelledError:
@@ -156,6 +236,8 @@ class TrikiHub:
                 self.set_status(state="reconnecting", message=f"Error: {e}")
             finally:
                 self.triki = None
+                self.mouse.reset()
+                self.pending = [0.0, 0.0, 0.0]
                 if triki._client and triki._client.is_connected:
                     # Puts the IMU back to sleep (and the LED off) to save battery.
                     await asyncio.shield(triki.stopTriki())
@@ -250,7 +332,7 @@ class TrikiHub:
                 await self._respond(writer, 200, "text/html; charset=utf-8", PAGES[path].read_bytes())
             elif method == "GET" and path == "/events":
                 await self._serve_events(writer)
-            elif method == "POST" and path in ("/api/led", "/api/alarm", "/api/blink"):
+            elif method == "POST" and path in ("/api/led", "/api/alarm", "/api/blink", "/api/mouse"):
                 length = int(headers.get("content-length", 0) or 0)
                 body = json.loads((await reader.readexactly(length)) or b"{}") if length else {}
                 code = 200
@@ -260,6 +342,8 @@ class TrikiHub:
                     result = {"ok": ok, "led": self.status["led"]}
                 elif path == "/api/alarm":
                     result = {"ok": True, "sound": self.set_alarm(bool(body.get("on")))}
+                elif path == "/api/mouse":
+                    result = {"ok": True, "mouse": self.configure_mouse(body)}
                 else:
                     self.blink(int(body.get("times", 2)))
                     result = {"ok": True}
@@ -301,6 +385,8 @@ class TrikiHub:
             self.idle_since = time.monotonic()
             if not self.clients and self.alarm_task:
                 self.set_alarm(False)        # never leave an alarm ringing with no page open
+            if not self.clients and self.mouse.settings["mode"] != "off":
+                self.configure_mouse({"mode": "off"})   # nor a Triki steering the cursor
 
     async def exit_when_idle(self, seconds: float):
         """Returns once no dashboard tab has been open for `seconds`."""
@@ -339,7 +425,7 @@ async def main():
     parser.add_argument("--app", action="store_true", help="open as an app window (Edge/Chrome) instead of a tab")
     parser.add_argument("--exit-when-idle", type=float, metavar="SECONDS",
                         help="quit once no dashboard has been open for this long")
-    parser.add_argument("--page", default="dashboard", choices=["dashboard", "timer", "paint"],
+    parser.add_argument("--page", default="dashboard", choices=["dashboard", "timer", "paint", "mouse"],
                         help="which app to open (default: dashboard)")
     args = parser.parse_args()
 

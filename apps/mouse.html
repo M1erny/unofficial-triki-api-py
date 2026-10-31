@@ -1,0 +1,578 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Triki Mouse</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M8 4l16 12-7 1.5L21 26l-3.5 1.5-4-8.5L8 24z' fill='%232a78d6'/%3E%3C/svg%3E">
+<style>
+  :root {
+    color-scheme: light;
+    --page: #f9f9f7;
+    --surface: #fcfcfb;
+    --wash: rgba(11, 11, 11, 0.04);
+    --wash-strong: rgba(42, 120, 214, 0.10);
+    --text: #0b0b0b;
+    --text-2: #52514e;
+    --muted: #898781;
+    --grid: #e1e0d9;
+    --baseline: #c3c2b7;
+    --border: rgba(11, 11, 11, 0.10);
+    --border-strong: rgba(42, 120, 214, 0.45);
+    --s1: #2a78d6;
+    --s2: #eb6834;
+    --good: #0ca30c;
+    --warning: #fab219;
+    --serious: #ec835a;
+    --critical: #d03b3b;
+    --arena: #f3f2ee;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --page: #0d0d0d;
+      --surface: #1a1a19;
+      --wash: rgba(255, 255, 255, 0.05);
+      --wash-strong: rgba(57, 135, 229, 0.18);
+      --text: #ffffff;
+      --text-2: #c3c2b7;
+      --muted: #898781;
+      --grid: #2c2c2a;
+      --baseline: #383835;
+      --border: rgba(255, 255, 255, 0.10);
+      --border-strong: rgba(57, 135, 229, 0.55);
+      --s1: #3987e5;
+      --s2: #d95926;
+      --arena: #141413;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --wash: rgba(255, 255, 255, 0.05);
+    --wash-strong: rgba(57, 135, 229, 0.18);
+    --text: #ffffff;
+    --text-2: #c3c2b7;
+    --muted: #898781;
+    --grid: #2c2c2a;
+    --baseline: #383835;
+    --border: rgba(255, 255, 255, 0.10);
+    --border-strong: rgba(57, 135, 229, 0.55);
+    --s1: #3987e5;
+    --s2: #d95926;
+    --arena: #141413;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; }
+  body { background: var(--page); color: var(--text); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
+
+  header.top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; padding: 12px 16px; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .brand { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  h1 { font-size: 18px; font-weight: 650; margin: 0; letter-spacing: -0.01em; }
+  .apps { display: inline-flex; border: 1px solid var(--border); border-radius: 10px; padding: 3px; background: var(--surface); gap: 2px; }
+  .apps a { display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 12px; border-radius: 7px; color: var(--text-2); text-decoration: none; font-size: 13px; font-weight: 500; white-space: nowrap; }
+  .apps a:hover { background: var(--wash); color: var(--text); }
+  .apps a[aria-current="page"] { background: var(--wash-strong); color: var(--text); font-weight: 600; }
+  .apps a:focus-visible { outline: 2px solid var(--s1); outline-offset: 1px; }
+  .apps svg { flex: none; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px 5px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); font-size: 13px; }
+  .pill .icon { display: inline-flex; width: 16px; height: 16px; flex: none; }
+  .pill .label { font-weight: 600; white-space: nowrap; }
+  .pill .msg { color: var(--text-2); white-space: nowrap; }
+  .tone-good { color: var(--good); } .tone-warning { color: var(--warning); }
+  .tone-serious { color: var(--serious); } .tone-critical { color: var(--critical); }
+  .spin { animation: spin 1s linear infinite; transform-origin: 50% 50%; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  main { display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 12px; padding: 12px 16px 20px; max-width: 1500px; margin: 0 auto; align-items: start; }
+  .col { display: grid; gap: 12px; min-width: 0; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; min-width: 0; }
+  h2 { font-size: 15px; font-weight: 600; margin: 0 0 10px; }
+  .sub { font-size: 12px; color: var(--muted); }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; }
+  .row label, .row .lbl { font-size: 13px; color: var(--text-2); }
+  .val { font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 600; min-width: 64px; text-align: right; }
+
+  .btn { appearance: none; font: inherit; font-size: 13px; height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 7px; white-space: nowrap; }
+  .btn:hover:not(:disabled) { background: var(--wash); }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn[aria-pressed="true"] { background: var(--wash-strong); border-color: var(--border-strong); }
+  .btn:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; }
+  .btn.primary { background: #2a78d6; color: #fff; border-color: transparent; font-weight: 600; }
+  .seg { display: flex; border: 1px solid var(--border); border-radius: 9px; overflow: hidden; background: var(--surface); }
+  .seg .btn { flex: 1; border: 0; border-radius: 0; height: 34px; }
+  .seg .btn + .btn { border-left: 1px solid var(--border); }
+  .seg .btn[aria-pressed="true"] { border-color: var(--border); font-weight: 600; }
+  .seg.mode .btn[data-mode="live"][aria-pressed="true"] { background: rgba(235, 104, 52, 0.14); }
+  select { font: inherit; font-size: 13px; height: 32px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); padding: 0 8px; }
+  input[type="range"] { flex: 1; accent-color: var(--s1); min-width: 0; }
+
+  .mode-note { margin-top: 10px; font-size: 13px; color: var(--text-2); display: flex; gap: 8px; align-items: flex-start; }
+  .mode-note svg { flex: none; margin-top: 2px; }
+  .state-line { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--grid); display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  .state-line .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex: none; }
+  .state-line .dot.on { background: var(--good); box-shadow: 0 0 0 3px rgba(12, 163, 12, 0.18); }
+  .state-line .dot.paused { background: var(--warning); }
+
+  .gestures { display: grid; grid-template-columns: 96px 1fr; gap: 12px; align-items: start; }
+  #moveViz { width: 96px; height: 96px; display: block; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { font-size: 12px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-2); transition: background 0.15s, color 0.15s, border-color 0.15s; }
+  .chip.lit { background: var(--wash-strong); border-color: var(--border-strong); color: var(--text); font-weight: 600; }
+  .log { margin: 10px 0 0; padding: 0; list-style: none; font-size: 12px; color: var(--text-2); max-height: 132px; overflow: hidden; }
+  .log li { display: flex; gap: 8px; padding: 2px 0; }
+  .log time { color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  .gesture-list { display: grid; grid-template-columns: 82px 1fr; gap: 6px 10px; margin: 0 0 10px; font-size: 13px; }
+  .gesture-list dt { font-weight: 600; color: var(--text); }
+  .gesture-list dd { margin: 0; color: var(--text-2); }
+  .howto { font-size: 13px; color: var(--text-2); margin: 0; padding-left: 18px; }
+  .howto li { margin: 3px 0; }
+  .howto b { color: var(--text); }
+
+  .tests-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+  .tests-head h2 { margin: 0; }
+  .arena { position: relative; height: min(64vh, 600px); min-height: 380px; border-radius: 10px; background: var(--arena); border: 1px solid var(--border); overflow: hidden; user-select: none; }
+  .panel { position: absolute; inset: 0; display: none; }
+  .panel.on { display: block; }
+  .center-msg { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; pointer-events: none; padding: 20px; }
+  .center-msg > div { pointer-events: auto; }
+  .big { font-size: 22px; font-weight: 600; margin: 0 0 6px; }
+  .result { font-size: 14px; color: var(--text-2); margin: 0 0 14px; }
+  .target { position: absolute; width: 56px; height: 56px; margin: -28px 0 0 -28px; border-radius: 50%; border: 0; padding: 0; cursor: pointer;
+            background: radial-gradient(circle, #fff 0 18%, #2a78d6 19% 44%, #fff 45% 58%, #2a78d6 59%); box-shadow: 0 0 0 2px var(--surface); }
+  .target:hover { filter: brightness(1.1); }
+  .hud { position: absolute; top: 10px; left: 12px; font-size: 13px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+  .folder { position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%); width: 120px; text-align: center; cursor: pointer; border-radius: 12px; padding: 12px 8px; }
+  .folder:hover { background: var(--wash); }
+  .folder.opened svg path:first-child { fill: var(--s2); }
+  .folder .name { font-size: 13px; margin-top: 4px; }
+  .scroll-wrap { position: absolute; inset: 44px 18% 16px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); overflow-y: auto; }
+  .scroll-wrap ol { margin: 0; padding: 0; list-style: none; }
+  .scroll-wrap li { padding: 12px 16px; border-bottom: 1px solid var(--grid); font-size: 14px; cursor: pointer; }
+  .scroll-wrap li:hover { background: var(--wash); }
+  .scroll-wrap li.goal { background: var(--wash-strong); font-weight: 600; }
+  .scroll-wrap li.done { background: rgba(12, 163, 12, 0.14); }
+  .vcursor { position: absolute; left: 0; top: 0; width: 26px; height: 26px; pointer-events: none; z-index: 10; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35)); transition: opacity 0.2s; }
+  .vcursor .ring { position: absolute; left: -14px; top: -14px; width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--s1); opacity: 0; }
+  .vcursor.clicked .ring { animation: ping 0.35s ease-out; }
+  @keyframes ping { from { opacity: 1; transform: scale(0.4); } to { opacity: 0; transform: scale(1.4); } }
+  .best { font-size: 12px; color: var(--muted); }
+
+  @media (max-width: 1000px) { main { grid-template-columns: minmax(0, 1fr); } }
+  @media (prefers-reduced-motion: reduce) { .spin, .vcursor.clicked .ring { animation: none; } .chip { transition: none; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <h1>Triki</h1>
+    <nav class="apps" aria-label="Triki apps">
+      <a href="/"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12.5l4-5 3 3 6-7"/></svg>Dashboard</a>
+      <a href="/timer"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="8" cy="9" r="5.5"/><path d="M8 6.2V9l1.8 1.2M6.5 1.5h3"/></svg>Timer</a>
+      <a href="/paint"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 9.5L13.6 2.4a1.4 1.4 0 0 1 2 2L8.5 11.5"/><path d="M5.5 10.5c-1.7 0-2.5 1-2.5 2.3 0 .9-.6 1.4-1.5 1.7 2.8.6 5.5-.2 5.5-2.5"/></svg>Paint</a>
+      <a href="/mouse" aria-current="page"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M3.5 2l9 6.5-4 .8 2.3 4.4-1.9.9-2.3-4.5L3.5 13z"/></svg>Mouse</a>
+    </nav>
+  </div>
+  <div class="pill" role="status" aria-live="polite">
+    <span class="icon" id="statusIcon"></span>
+    <span class="label" id="statusLabel">Connecting</span>
+    <span class="msg" id="statusMsg"></span>
+  </div>
+</header>
+
+<main>
+  <div class="col">
+    <section class="card">
+      <h2>Mouse control</h2>
+      <div class="seg mode" role="group" aria-label="Mouse mode">
+        <button class="btn" data-mode="off" aria-pressed="true">Off</button>
+        <button class="btn" data-mode="preview" aria-pressed="false">Preview</button>
+        <button class="btn" data-mode="live" aria-pressed="false">Live</button>
+      </div>
+      <div class="mode-note" id="modeNote"></div>
+      <div class="state-line"><span class="dot" id="stateDot"></span><span id="stateText">Off</span></div>
+    </section>
+
+    <section class="card">
+      <h2>How to steer</h2>
+      <dl class="gesture-list">
+        <dt>Tilt</dt><dd>forward, back, left or right moves the cursor. Tilt further to go faster.</dd>
+        <dt>Twist</dt><dd>it like a cap to scroll. Clockwise scrolls down.</dd>
+        <dt>Tap</dt><dd>it with a finger to click. Two taps double-click.</dd>
+        <dt>Face-down</dt><dd>pauses the mouse and turns the LED off. Pick it up again and it carries on from your new grip.</dd>
+      </dl>
+      <p class="sub" style="margin: 0">The same gestures as Paint: tilt steers, twist adjusts.</p>
+      <div class="row">
+        <label for="rotSel">Tilt direction</label>
+        <select id="rotSel">
+          <option value="0">As is</option>
+          <option value="90">Turned 90°</option>
+          <option value="180">Turned 180°</option>
+          <option value="270">Turned 270°</option>
+        </select>
+      </div>
+      <div class="row">
+        <span class="lbl" id="levelText">Level is how you hold it when you switch on</span>
+        <button class="btn" id="levelBtn">Set current angle as level</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Feel</h2>
+      <div class="row"><label for="speed">Cursor speed</label><input type="range" id="speed" min="2" max="40" step="1"><span class="val" id="speedVal"></span></div>
+      <div class="row"><label for="scroll">Scroll speed</label><input type="range" id="scroll" min="0.2" max="4" step="0.1"><span class="val" id="scrollVal"></span></div>
+      <div class="row"><label for="tap">Tap strength needed</label><input type="range" id="tap" min="0.2" max="1.2" step="0.05"><span class="val" id="tapVal"></span></div>
+      <div class="row">
+        <span class="lbl">Click by</span>
+        <div class="seg" role="group" aria-label="Click method" style="width: 200px">
+          <button class="btn" data-click="tap">Tap</button>
+          <button class="btn" data-click="dwell">Dwell</button>
+          <button class="btn" data-click="both">Both</button>
+        </div>
+      </div>
+      <div class="row"><span class="lbl">Scroll direction</span><button class="btn" id="reverseBtn" aria-pressed="false">Reverse</button></div>
+    </section>
+
+    <section class="card">
+      <h2>Gestures right now</h2>
+      <div class="gestures">
+        <canvas id="moveViz" aria-label="Current cursor movement"></canvas>
+        <div>
+          <div class="chips">
+            <span class="chip" id="cMove">Move</span>
+            <span class="chip" id="cScroll">Scroll</span>
+            <span class="chip" id="cClick">Click</span>
+            <span class="chip" id="cDouble">Double-click</span>
+            <span class="chip" id="cDwell">Dwell click</span>
+            <span class="chip" id="cShake">Shake</span>
+            <span class="chip" id="cPause">Paused</span>
+          </div>
+          <ul class="log" id="log" aria-live="polite"></ul>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="col">
+    <section class="card">
+      <div class="tests-head">
+        <h2>Test area</h2>
+        <div class="seg" role="group" aria-label="Test" style="width: 340px">
+          <button class="btn" data-test="targets" aria-pressed="true">Targets</button>
+          <button class="btn" data-test="double" aria-pressed="false">Double-click</button>
+          <button class="btn" data-test="scroll" aria-pressed="false">Scroll</button>
+        </div>
+      </div>
+      <div class="arena" id="arena">
+        <div class="panel on" id="pTargets">
+          <div class="hud" id="tHud"></div>
+          <div class="center-msg" id="tIntro"><div>
+            <p class="big">Hit 10 targets</p>
+            <p class="result" id="tResult">Aim and click each target as fast as you can.<br>Try it with your normal mouse too, to compare.</p>
+            <button class="btn primary" id="tStart">Start</button>
+            <p class="best" id="tBest"></p>
+          </div></div>
+        </div>
+        <div class="panel" id="pDouble">
+          <div class="hud" id="dHud">Double-click the folder</div>
+          <div class="folder" id="folder">
+            <svg width="72" height="60" viewBox="0 0 72 60" aria-hidden="true"><path d="M4 12a6 6 0 0 1 6-6h16l6 7h30a6 6 0 0 1 6 6v31a6 6 0 0 1-6 6H10a6 6 0 0 1-6-6z" fill="#eda100"/><path d="M4 22h64v28a6 6 0 0 1-6 6H10a6 6 0 0 1-6-6z" fill="#f5b829"/></svg>
+            <div class="name" id="folderName">Holiday photos</div>
+          </div>
+        </div>
+        <div class="panel" id="pScroll">
+          <div class="hud" id="sHud"></div>
+          <div class="scroll-wrap" id="scrollBox"><ol id="scrollList"></ol></div>
+        </div>
+        <div class="vcursor" id="vcursor" hidden>
+          <span class="ring"></span>
+          <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><path d="M3 2l17 12.5-7.6 1.4 4.4 8.3-3.4 1.6-4.3-8.4L3 23z" fill="#2a78d6" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+      <p class="sub" style="margin: 10px 0 0" id="arenaHint"></p>
+    </section>
+
+    <section class="card">
+      <h2>How to try it</h2>
+      <ol class="howto">
+        <li>Hold the Triki however is comfortable, then choose <b>Preview</b>. That angle becomes level, so the cursor stands still. Only the blue cursor in the test area moves; your real mouse is untouched.</li>
+        <li><b>Tilt</b> it to move: tilting right moves right, tilting away from you moves up. If the directions are turned, change <b>Tilt direction</b>.</li>
+        <li><b>Twist</b> it like a cap to scroll, and <b>tap</b> it with a finger to click (two taps double-click).</li>
+        <li><b>Turn it face-down</b> to pause; the LED goes off. When you pick it up again, your new grip becomes level, like lifting a mouse to re-grip it.</li>
+        <li>When it feels right, choose <b>Live</b> to steer your real cursor in Chrome or any app. Keep this window open (minimised is fine); closing it turns the mouse off.</li>
+      </ol>
+    </section>
+  </div>
+</main>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+// ---------- server state ----------
+let status = {}, mouse = {}, lastSeq = 0, boot = null;
+const api = body => fetch('/api/mouse', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+  .then(r => r.json()).catch(() => null);
+
+const ICONS = {
+  check: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.5"/><path d="M5.2 8.2l1.9 1.9 3.7-4"/></svg>',
+  spin: '<svg class="spin" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M8 1.5a6.5 6.5 0 1 1-6.5 6.5"/></svg>',
+  alert: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.8l6.6 11.7H1.4z"/><path d="M8 6.3v3.2M8 11.6v.1"/></svg>',
+  x: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><circle cx="8" cy="8" r="6.5"/><path d="M5.7 5.7l4.6 4.6M10.3 5.7l-4.6 4.6"/></svg>',
+};
+const STATES = {
+  streaming: { tone: 'good', icon: 'check', label: 'Triki connected' },
+  connecting: { tone: 'warning', icon: 'spin', label: 'Connecting' },
+  scanning: { tone: 'warning', icon: 'spin', label: 'Looking for the Triki' },
+  starting: { tone: 'warning', icon: 'spin', label: 'Starting' },
+  not_found: { tone: 'serious', icon: 'alert', label: 'Triki not found' },
+  reconnecting: { tone: 'serious', icon: 'alert', label: 'Reconnecting' },
+  offline: { tone: 'critical', icon: 'x', label: 'Server offline' },
+};
+function renderStatus() {
+  const def = STATES[status.state] || STATES.starting;
+  $('statusIcon').className = 'icon tone-' + def.tone;
+  $('statusIcon').innerHTML = ICONS[def.icon];
+  $('statusLabel').textContent = def.label;
+  const msg = status.state === 'not_found' ? 'retrying… is it on?' : status.state === 'offline' ? status.message || '' : '';
+  $('statusMsg').textContent = msg; $('statusMsg').hidden = !msg;
+  renderMouse();
+}
+
+// ---------- controls ----------
+const MODE_NOTES = {
+  off: 'The Triki does nothing to the cursor. The test area still works with your normal mouse, so you can compare.',
+  preview: 'Safe test: only the blue cursor in the test area moves. Your real mouse is untouched.',
+  live: 'The Triki moves your real cursor, scrolls and clicks, in Chrome or any app. Turn it face-down to pause, or press Off.',
+};
+const NOTE_ICON = {
+  off: '', preview: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--s1)" stroke-width="1.7"><circle cx="8" cy="8" r="6.5"/><path d="M8 7v4M8 4.8v.1" stroke-linecap="round"/></svg>',
+  live: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--serious)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.8l6.6 11.7H1.4z"/><path d="M8 6.3v3.2M8 11.6v.1"/></svg>',
+};
+function renderMouse() {
+  const m = mouse, connected = status.state === 'streaming';
+  document.querySelectorAll('[data-mode]').forEach(b => {
+    b.setAttribute('aria-pressed', String(b.dataset.mode === m.mode));
+    if (b.dataset.mode === 'live') { b.disabled = m.live_available === false; b.title = b.disabled ? 'Real cursor control is only available on Windows' : ''; }
+  });
+  const note = $('modeNote'); note.textContent = '';
+  if (NOTE_ICON[m.mode]) { const s = document.createElement('span'); s.innerHTML = NOTE_ICON[m.mode]; note.append(s.firstChild); }
+  note.append(document.createTextNode(MODE_NOTES[m.mode] || ''));
+
+  const dot = $('stateDot');
+  dot.className = 'dot' + (m.mode !== 'off' && connected ? (m.paused ? ' paused' : ' on') : '');
+  $('stateText').textContent = m.mode === 'off' ? 'Off'
+    : !connected ? 'Waiting for the Triki'
+    : m.paused ? 'Paused: the Triki is face-down. Turn it face-up to resume.'
+    : (m.mode === 'live' ? 'Live: steering your real cursor' : 'Preview: steering the blue cursor') + ' · LED on';
+  $('cPause').classList.toggle('lit', !!m.paused && m.mode !== 'off');
+
+  document.querySelectorAll('[data-click]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.click === m.click)));
+  $('levelText').textContent = 'Level is how you hold it when you switch on';
+  if (document.activeElement !== $('rotSel')) $('rotSel').value = String(m.rotation || 0);
+  for (const [id, key, fmt] of [['speed', 'speed', v => Math.round(v)], ['scroll', 'scroll', v => (+v).toFixed(1) + '×'], ['tap', 'tap', v => v < 0.35 ? 'Light' : v < 0.7 ? 'Medium' : 'Firm']]) {
+    if (m[key] === undefined) continue;
+    if (document.activeElement !== $(id)) $(id).value = m[key];
+    $(id + 'Val').textContent = fmt(m[key]);
+  }
+  $('reverseBtn').setAttribute('aria-pressed', String(!!m.reverse_scroll));
+  $('vcursor').hidden = m.mode !== 'preview';
+  $('arenaHint').textContent = m.mode === 'preview' ? 'Preview: the blue cursor follows the Triki and clicks where it points.'
+    : m.mode === 'live' ? 'Live: your real cursor follows the Triki.'
+    : 'Off: use your normal mouse here to set a baseline.';
+}
+document.querySelectorAll('[data-mode]').forEach(b => b.addEventListener('click', () => api({ mode: b.dataset.mode })));
+document.querySelectorAll('[data-click]').forEach(b => b.addEventListener('click', () => api({ click: b.dataset.click })));
+$('rotSel').addEventListener('change', e => api({ rotation: Number(e.target.value) }));
+$('levelBtn').addEventListener('click', () => api({ calibrate: true }));
+$('reverseBtn').addEventListener('click', () => api({ reverse_scroll: !mouse.reverse_scroll }));
+for (const id of ['speed', 'scroll', 'tap']) {
+  let timer = null;
+  $(id).addEventListener('input', e => {
+    $(id + 'Val').textContent = id === 'speed' ? e.target.value : id === 'scroll' ? (+e.target.value).toFixed(1) + '×' : (e.target.value < 0.35 ? 'Light' : e.target.value < 0.7 ? 'Medium' : 'Firm');
+    clearTimeout(timer); timer = setTimeout(() => api({ [id]: Number(e.target.value) }), 120);
+  });
+}
+
+// ---------- gesture feedback ----------
+const LABELS = { click: 'Click', double: 'Double-click', dwell: 'Dwell click', shake: 'Shake (no click)', pause: 'Paused: face-down', resume: 'Resumed' };
+const CHIP = { click: 'cClick', double: 'cDouble', dwell: 'cDwell', shake: 'cShake' };
+const chipTimers = {};
+function flash(id, ms = 600) {
+  const el = $(id); el.classList.add('lit');
+  clearTimeout(chipTimers[id]); chipTimers[id] = setTimeout(() => el.classList.remove('lit'), ms);
+}
+let lastScrollLog = 0;
+function log(text) {
+  const li = document.createElement('li');
+  const t = document.createElement('time'); t.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  li.append(t, document.createTextNode(text));
+  $('log').prepend(li);
+  while ($('log').children.length > 8) $('log').lastChild.remove();
+}
+const vel = { x: 0, y: 0 };
+function onMouseEvent(e) {
+  if (e.dx || e.dy) { vel.x += e.dx; vel.y += e.dy; flash('cMove', 250); }
+  if (e.wheel) {
+    flash('cScroll', 400);
+    const now = performance.now();
+    if (now - lastScrollLog > 1200) { log(e.wheel < 0 ? 'Scroll down' : 'Scroll up'); lastScrollLog = now; }
+  }
+  for (const ev of e.events) { if (CHIP[ev]) flash(CHIP[ev]); if (LABELS[ev]) log(LABELS[ev]); }
+  if (mouse.mode === 'preview') previewApply(e);
+}
+
+// movement visual: where the Triki is pushing the cursor right now
+const viz = $('moveViz'), vctx = viz.getContext('2d');
+(function sizeViz() { const d = devicePixelRatio || 1; viz.width = 96 * d; viz.height = 96 * d; vctx.setTransform(d, 0, 0, d, 0, 0); })();
+function drawViz() {
+  const cs = getComputedStyle(document.documentElement);
+  vctx.clearRect(0, 0, 96, 96);
+  vctx.beginPath(); vctx.arc(48, 48, 44, 0, Math.PI * 2); vctx.strokeStyle = cs.getPropertyValue('--grid'); vctx.lineWidth = 1; vctx.stroke();
+  vctx.beginPath(); vctx.moveTo(48, 8); vctx.lineTo(48, 88); vctx.moveTo(8, 48); vctx.lineTo(88, 48); vctx.stroke();
+  const m = Math.hypot(vel.x, vel.y), k = m > 0 ? Math.min(40, 14 * Math.log1p(m / 6)) / m : 0;
+  const x = 48 + vel.x * k, y = 48 + vel.y * k;
+  vctx.beginPath(); vctx.moveTo(48, 48); vctx.lineTo(x, y); vctx.strokeStyle = cs.getPropertyValue('--s1'); vctx.lineWidth = 2; vctx.lineCap = 'round'; vctx.stroke();
+  vctx.beginPath(); vctx.arc(x, y, 6, 0, Math.PI * 2); vctx.fillStyle = cs.getPropertyValue('--surface'); vctx.fill();
+  vctx.beginPath(); vctx.arc(x, y, 4, 0, Math.PI * 2); vctx.fillStyle = cs.getPropertyValue('--s1'); vctx.fill();
+  vel.x *= 0.82; vel.y *= 0.82;
+}
+
+// ---------- preview cursor (moves only inside the test area) ----------
+const arena = $('arena'), vc = $('vcursor');
+const pc = { x: 0, y: 0, tx: 0, ty: 0, placed: false };
+function placeCursor() {
+  if (!pc.placed && arena.clientWidth) { pc.x = pc.tx = arena.clientWidth / 2; pc.y = pc.ty = arena.clientHeight / 2; pc.placed = true; }
+}
+function previewApply(e) {
+  placeCursor();
+  pc.tx = clamp(pc.tx + e.dx, 0, arena.clientWidth - 2);
+  pc.ty = clamp(pc.ty + e.dy, 0, arena.clientHeight - 2);
+  if (e.wheel) {
+    const r = arena.getBoundingClientRect();
+    let el = document.elementFromPoint(r.left + pc.tx, r.top + pc.ty);
+    while (el && el !== arena && !(el.scrollHeight > el.clientHeight + 2 && getComputedStyle(el).overflowY !== 'visible')) el = el.parentElement;
+    if (el && el !== arena) el.scrollBy({ top: -e.wheel * 100 });
+  }
+  if (e.clicks) {
+    pc.x = pc.tx; pc.y = pc.ty;                  // click lands where the cursor is aimed
+    const r = arena.getBoundingClientRect();
+    vc.hidden = true;
+    const el = document.elementFromPoint(r.left + pc.x, r.top + pc.y);
+    vc.hidden = mouse.mode !== 'preview';
+    if (el && arena.contains(el)) {
+      const opts = { bubbles: true, cancelable: true, clientX: r.left + pc.x, clientY: r.top + pc.y, view: window };
+      for (let i = 0; i < e.clicks; i++) el.dispatchEvent(new MouseEvent('click', Object.assign({ detail: i + 1 }, opts)));
+      if (e.clicks >= 2) el.dispatchEvent(new MouseEvent('dblclick', Object.assign({ detail: 2 }, opts)));
+    }
+    vc.classList.remove('clicked'); void vc.offsetWidth; vc.classList.add('clicked');
+  }
+}
+function moveCursor() {
+  placeCursor();
+  pc.x += (pc.tx - pc.x) * 0.45; pc.y += (pc.ty - pc.y) * 0.45;   // glide between 17 Hz updates
+  vc.style.transform = `translate(${pc.x - 3}px, ${pc.y - 2}px)`;
+}
+
+// ---------- tests ----------
+document.querySelectorAll('[data-test]').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('[data-test]').forEach(o => o.setAttribute('aria-pressed', String(o === b)));
+  $('pTargets').classList.toggle('on', b.dataset.test === 'targets');
+  $('pDouble').classList.toggle('on', b.dataset.test === 'double');
+  $('pScroll').classList.toggle('on', b.dataset.test === 'scroll');
+  if (b.dataset.test === 'scroll') newScrollGoal();
+}));
+
+// 1) targets
+const T = { running: false, n: 0, hits: 0, misses: 0, start: 0, el: null };
+let best = null;
+try { best = JSON.parse(localStorage.getItem('triki-mouse-best') || 'null'); } catch (e) {}
+function showBest() { $('tBest').textContent = best ? `Best with ${best.how}: ${best.time.toFixed(1)} s, ${best.acc}% accuracy` : ''; }
+showBest();
+function nextTarget() {
+  if (T.el) T.el.remove();
+  if (T.hits >= 10) return finishTargets();
+  const b = document.createElement('button');
+  b.className = 'target'; b.setAttribute('aria-label', `Target ${T.hits + 1} of 10`);
+  const w = arena.clientWidth, h = arena.clientHeight;
+  b.style.left = (40 + Math.random() * (w - 80)) + 'px';
+  b.style.top = (60 + Math.random() * (h - 100)) + 'px';
+  b.addEventListener('click', ev => { ev.stopPropagation(); T.hits++; updateTHud(); nextTarget(); });
+  $('pTargets').append(b); T.el = b;
+}
+function updateTHud() { $('tHud').textContent = T.running ? `Target ${Math.min(T.hits + 1, 10)} / 10 · misses ${T.misses}` : ''; }
+$('tStart').addEventListener('click', ev => {
+  ev.stopPropagation();
+  Object.assign(T, { running: true, hits: 0, misses: 0, start: performance.now() });
+  $('tIntro').hidden = true; updateTHud(); nextTarget();
+});
+$('pTargets').addEventListener('click', () => { if (T.running) { T.misses++; updateTHud(); } });
+function finishTargets() {
+  T.running = false; T.el = null;
+  const time = (performance.now() - T.start) / 1000, acc = Math.round(100 * 10 / (10 + T.misses));
+  const how = mouse.mode === 'off' ? 'your mouse' : 'the Triki';
+  $('tResult').textContent = `${time.toFixed(1)} s total · ${(time / 10).toFixed(2)} s per target · ${acc}% accuracy (${how})`;
+  if (!best || time < best.time) { best = { time, acc, how }; try { localStorage.setItem('triki-mouse-best', JSON.stringify(best)); } catch (e) {} }
+  showBest();
+  $('tStart').textContent = 'Again';
+  $('tIntro').hidden = false; updateTHud();
+}
+
+// 2) double-click
+const D = { singles: 0, doubles: 0 };
+$('folder').addEventListener('click', () => { D.singles++; renderD(); });
+$('folder').addEventListener('dblclick', () => {
+  D.doubles++; D.singles = Math.max(0, D.singles - 2);
+  $('folder').classList.add('opened'); $('folderName').textContent = 'Opened!';
+  setTimeout(() => { $('folder').classList.remove('opened'); $('folderName').textContent = 'Holiday photos'; }, 900);
+  renderD();
+});
+function renderD() { $('dHud').textContent = `Double-clicks ${D.doubles} · single clicks ${D.singles}`; }
+
+// 3) scroll
+const items = Array.from({ length: 80 }, (_, i) => i + 1);
+$('scrollList').append(...items.map(i => { const li = document.createElement('li'); li.textContent = `Item ${i}`; li.dataset.i = i; return li; }));
+const S = { goal: 0, start: 0 };
+function newScrollGoal() {
+  document.querySelectorAll('#scrollList li').forEach(li => li.classList.remove('goal', 'done'));
+  S.goal = 30 + Math.floor(Math.random() * 45); S.start = performance.now();
+  $('scrollBox').scrollTop = 0;
+  document.querySelector(`#scrollList li[data-i="${S.goal}"]`).classList.add('goal');
+  $('sHud').textContent = `Scroll down to Item ${S.goal} and click it`;
+}
+$('scrollList').addEventListener('click', ev => {
+  const li = ev.target.closest('li'); if (!li) return;
+  if (Number(li.dataset.i) === S.goal) {
+    li.classList.replace('goal', 'done');
+    $('sHud').textContent = `Found Item ${S.goal} in ${((performance.now() - S.start) / 1000).toFixed(1)} s. A new one in a moment…`;
+    setTimeout(newScrollGoal, 1600);
+  }
+});
+
+// ---------- connection ----------
+function connect() {
+  const es = new EventSource('/events');
+  es.addEventListener('status', e => {
+    const st = JSON.parse(e.data);
+    if (st.boot && st.boot !== boot) { boot = st.boot; lastSeq = 0; }
+    status = Object.assign({}, status, st);
+    if (st.mouse) mouse = st.mouse;
+    renderStatus();
+  });
+  es.addEventListener('mouse', e => onMouseEvent(JSON.parse(e.data)));
+  es.onerror = () => { if (es.readyState !== EventSource.OPEN) { status = Object.assign({}, status, { state: 'offline', message: 'Run apps/TrikiApps.py' }); renderStatus(); } };
+}
+
+function frame() { drawViz(); if (mouse.mode === 'preview') moveCursor(); requestAnimationFrame(frame); }
+mouse = { mode: 'off', rotation: 0, click: 'tap' };
+renderStatus();
+connect();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

@@ -15,6 +15,8 @@ apps/
   dashboard.html      live charts, 3D orientation, raw data, CSV export
   timer.html          twist to set, hold still to start, LED + sound alarm
   paint.html          tilt to steer, twist for brush size, shake to paint
+  mouse.html          mouse: tilt to move, twist to scroll, tap to click (preview or live)
+  triki_mouse.py      gesture engine for the mouse (test_mouse.py tests it: python apps/test_mouse.py)
   icons/              icons for Windows desktop shortcuts
 ```
 
@@ -87,6 +89,7 @@ pythonw apps/TrikiApps.py --app --exit-when-idle 20   # app-style window, no con
 | **Dashboard** | `/` | Live accelerometer and gyroscope charts, a 3D orientation view (sensor fusion), battery, sample rate, raw packets, LED toggle and CSV export |
 | **Timer** | `/timer` | A kitchen timer: twist clockwise to set the time, hold still to start, shake to pause or resume. When time is up the LED flashes and an alarm plays. |
 | **Paint** | `/paint` | Tilt steers the brush, twist changes its size, shake turns painting on or off, and holding the Triki upside down clears the canvas. Mouse, pen and touch draw too. |
+| **Mouse** | `/mouse` | Use the Triki as a mouse with the same gestures as Paint: tilt to move the cursor, twist like a cap to scroll, tap to click, turn it face-down to pause. *Preview* moves only a cursor in the page's test area; *Live* steers the real Windows cursor in any app. Includes click, double-click and scroll tests. |
 
 All three share a tab bar, and the server reconnects by itself if the controller drops. Only one program can be connected to the Triki at a time, so close the Żabka app on your phone first.
 
